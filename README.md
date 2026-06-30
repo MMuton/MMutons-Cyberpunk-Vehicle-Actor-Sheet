@@ -36,6 +36,10 @@ This is a module that adds a dedicated vehicle actor sheet to the Foundry VTT Cy
 * **Bulletproof glass tracking:** Positions can be flagged as having bulletproof glass with a configurable HP max. Click the HP badge to apply damage or repair it.
 * **Upgrades tab:** Vehicle upgrades and cyberware can be mounted directly from cargo and are displayed with their full description.
 
+<p align="center">
+  <img src="https://i.imgur.com/57rVHSe.png" width=700>
+</p>
+
 ## Not Just Vehicles
 
 Don't let the name fool you, the sheet works for any mounted or crewed platform. Use it for **turrets**, **ACPAs**, **weapon emplacements**, **mechs**, and anything else that requires a crew position.
@@ -82,4 +86,4 @@ Militech font by Adam Rucki
 
 ## Disclaimer
 
-As someone who is still new to programming, I have enlisted the help of AI during this project when I have struggled with the code.
+As someone who is still new to programming, I have enlisted the help of AI during this project when I have struggled with the code (Especially with skill delegation and auto-ownership)
