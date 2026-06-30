@@ -38,7 +38,7 @@ This is a module that adds a dedicated vehicle actor sheet to the Foundry VTT Cy
 * **Upgrades tab:** Vehicle upgrades and cyberware can be mounted directly from cargo and are displayed with their full description.
 
 <p align="center">
-  <img src="https://i.imgur.com/57rVHSe.png" width=300>
+  <img src="https://i.imgur.com/Z6KoD6P.png" width=400>
 </p>
 
 ## Not Just Vehicles
