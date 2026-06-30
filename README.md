@@ -24,7 +24,7 @@
 
 This is a module that adds a dedicated vehicle actor sheet to the Foundry VTT Cyberpunk RED system. Assign crew to seats, delegate skill checks and weapon attacks to occupants, manage cargo and upgrades, and let the sheet handle player permissions automatically depending on the position.
 <p align="center">
-  <img src="https://i.imgur.com/Sz1su35.png" width=700>
+  <img src="https://i.imgur.com/Sz1su35.png" width=300>
 </p>
 ## Features
 
@@ -37,7 +37,7 @@ This is a module that adds a dedicated vehicle actor sheet to the Foundry VTT Cy
 * **Upgrades tab:** Vehicle upgrades and cyberware can be mounted directly from cargo and are displayed with their full description.
 
 <p align="center">
-  <img src="https://i.imgur.com/57rVHSe.png" width=700>
+  <img src="https://i.imgur.com/57rVHSe.png" width=300>
 </p>
 
 ## Not Just Vehicles
