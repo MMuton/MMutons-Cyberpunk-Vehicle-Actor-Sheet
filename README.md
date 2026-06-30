@@ -26,6 +26,7 @@ This is a module that adds a dedicated vehicle actor sheet to the Foundry VTT Cy
 <p align="center">
   <img src="https://i.imgur.com/Sz1su35.png" width=300>
 </p>
+
 ## Features
 
 * **Crew positions:** Positions are fully configurable. Set the seat name, max occupants, available skills, and whether the position can control mounted weapons or grants token movement to the owner of the actor.
