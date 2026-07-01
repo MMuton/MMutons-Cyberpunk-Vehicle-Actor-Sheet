@@ -3,7 +3,7 @@
   "title": "MMuton's CPR Vehicle Actor Sheet",
   "description": "A fully-featured vehicle actor sheet for Cyberpunk RED with crew positions, skill delegation, weapon mounting, and automatic permission management.",
   "author": "MMuton",
-  "version": "2.0.0",
+  "version": "2.2",
   "compatibility": {
     "minimum": "12",
     "verified": "12.331",
