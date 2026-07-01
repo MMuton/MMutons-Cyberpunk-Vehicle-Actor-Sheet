@@ -1,5 +1,8 @@
-## 2.1.0
-- Added non-English skill name matching
+## 2.2
+- Removed redundant auto-detect vehicle upgrade code.
 
-## 2.0.0
-- Initial release
+## 2.1
+- Added non-English skill name matching.
+
+## 2.0
+- Initial release.
