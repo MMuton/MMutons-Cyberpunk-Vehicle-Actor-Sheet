@@ -784,15 +784,6 @@ async _onFireCheckboxToggle(event) {
     event.preventDefault();
     const item = this.actor.items.get(event.currentTarget.dataset.itemId);
     if (!item) return;
-    
-    const description = (item.system.description?.value || item.system.description || '').toLowerCase();
-    const vehicleKeywords = ['bikes', 'jetskis', 'gyrocopters', 'groundcars', 'vehicles', 'aerozep', 'av-4', 'cabin cruiser', 'yacht'];
-    
-    if (!vehicleKeywords.some(keyword => description.includes(keyword))) {
-      ui.notifications.warn('Incompatible Upgrade - This is not a vehicle upgrade.');
-      return;
-    }
-    
     await item.setFlag('mmutons-cyberpunk-red-vas', 'mounted', true);
   }
 
