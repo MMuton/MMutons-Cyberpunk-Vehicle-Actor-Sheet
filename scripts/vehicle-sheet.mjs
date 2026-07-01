@@ -593,9 +593,20 @@ async _onFireCheckboxToggle(event) {
     const occupant = await fromUuid(pos.occupants[0]);
     if (!occupant) return;
     
-    const skill = occupant.items.find(i => i.type === 'skill' && i.name === skillTitle);
-    if (!skill) return;
-    
+    const normalize = s => s.normalize('NFC').trim().toLowerCase();
+    const toCamel = name => name.split(' ').map((w, i) => i === 0 ? w.charAt(0).toLowerCase() + w.slice(1) : w.charAt(0).toUpperCase() + w.slice(1)).join('');
+    const skill = occupant.items.find(i => {
+      if (i.type !== 'skill') return false;
+      if (normalize(i.name) === normalize(skillTitle)) return true;
+      const label = game.i18n.localize(`CPR.global.itemType.skill.${toCamel(i.name)}`);
+      if (label && normalize(label) === normalize(skillTitle)) return true;
+      return false;
+    });
+    if (!skill) {
+      ui.notifications.warn(`VAS | Skill "${skillTitle}" not found.`);
+      return;
+    }
+
     let cprRoll = skill.createRoll('skill', occupant);
     
     const keepRolling = await cprRoll.handleRollDialog(event, occupant, skill);
