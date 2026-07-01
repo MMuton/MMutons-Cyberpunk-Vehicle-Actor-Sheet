@@ -439,7 +439,7 @@ export class VehicleSheet extends ActorSheet {
     
     const positions = this.actor.getFlag('mmutons-cyberpunk-red-vas', 'positions').filter(p => p.canControlWeapons);
     if (positions.length === 0) {
-      ui.notifications.warn('No weapon-capable positions available');
+      ui.notifications.warn('No weapon-capable positions found');
       return;
     }
     
