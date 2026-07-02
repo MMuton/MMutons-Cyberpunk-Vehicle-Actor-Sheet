@@ -8,7 +8,7 @@ Hooks.once('init', () => {
 
 Hooks.once('setup', () => {
   Actors.registerSheet('mmutons-cyberpunk-red-vas', VehicleSheet, {
-    types: ['character'],
+    types: ['character', 'mook'],
     makeDefault: false,
     label: 'Vehicle Sheet (VAS)'
   });
