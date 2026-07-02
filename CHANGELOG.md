@@ -1,3 +1,6 @@
+## 2.3
+-Fixed VAS not appearing on Mook sheets.
+
 ## 2.2
 - Removed redundant auto-detect vehicle upgrade code.
 
