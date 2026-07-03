@@ -1217,6 +1217,66 @@ html[data-cpr-theme="darkmode"] .vas-vehicle {
   font-family: inherit !important;
 }
 
+.vas-vehicle .tab[data-tab="info"] .form-group {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  margin-bottom: 20px !important;
+}
+
+.vas-vehicle .tab[data-tab="info"] .form-group label {
+  order: -1 !important;
+  text-align: center !important;
+  width: 100% !important;
+  color: var(--cpr-color-red, #b90202) !important;
+  font-size: 14px !important;
+  letter-spacing: 0.08em !important;
+  margin-bottom: 8px !important;
+}
+
+html[data-cpr-theme="darkmode"] .vas-vehicle .tab[data-tab="info"] .form-group label {
+  color: var(--cpr-color-white, #eaeaea) !important;
+}
+
+.vas-vehicle .tab[data-tab="info"] .form-group input,
+.vas-vehicle .tab[data-tab="info"] .form-group .editor,
+.vas-vehicle .tab[data-tab="info"] .form-group .editor-container {
+  width: 100% !important;
+  order: 0 !important;
+}
+
+.vas-vehicle .tab[data-tab="info"] .editor {
+  min-height: 200px !important;
+  background: var(--vas-bg-inset) !important;
+  border: 1px solid var(--vas-border) !important;
+}
+
+.vas-vehicle .tab[data-tab="info"] .editor-content {
+  min-height: 175px !important;
+  padding: 8px !important;
+  color: var(--vas-text) !important;
+}
+
+.vas-vehicle .tab[data-tab="info"] button.editor-edit {
+  padding: 6px 14px !important;
+  background: var(--vas-accent) !important;
+  color: var(--vas-white) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  clip-path: var(--vas-clip-sm) !important;
+  cursor: pointer !important;
+  font-size: 12px !important;
+  font-weight: bold !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  width: auto !important;
+  margin-top: 4px !important;
+}
+
+.vas-vehicle .tab[data-tab="info"] button.editor-edit:hover {
+  opacity: 0.8 !important;
+}
+
 .vas-vehicle .drop-zone.dragover {
   border-color: var(--vas-accent) !important;
   background: rgba(185, 2, 2, 0.08) !important;

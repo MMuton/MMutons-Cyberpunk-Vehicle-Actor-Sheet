@@ -1,6 +1,5 @@
 <form class="{{cssClass}}" autocomplete="off">
   
-  {{!-- Header --}}
   <header class="sheet-header">
     <img class="profile-img" src="{{actor.img}}" data-edit="img" title="{{actor.name}}"/>
     
@@ -45,8 +44,8 @@
       </div>
   </header>
 
-  {{!-- Tabs --}}
   <nav class="tabs" data-group="primary">
+	<a class="item" data-tab="info">Info</a>
     <a class="item" data-tab="main">Operations</a>
     <a class="item" data-tab="weapons">Weapons & Armor</a>
     <a class="item" data-tab="cargo">Cargo</a>
@@ -54,17 +53,14 @@
     <a class="item" data-tab="damage">Damage</a>
   </nav>
 
-  {{!-- Body --}}
   <section class="sheet-body">
     
-    {{!-- Main Tab - Operations (Positions + Mounted Weapons) --}}
     <div class="tab" data-group="primary" data-tab="main">
       
       <div class="positions-grid">
         {{#each positions}}
         <div class="position-card {{#if this.isFull}}position-full{{/if}}" data-position-id="{{this.id}}">
           
-          {{!-- Position Header --}}
           <div class="position-header">
             <div class="position-title-group">
               <h3 class="position-name">{{this.name}}</h3>
@@ -89,7 +85,6 @@
             </div>
           </div>
           
-          {{!-- Occupants Drop Zone --}}
           <div class="drop-zone" data-position-id="{{this.id}}">
             {{#if this.hasOccupants}}
               {{#if this.isCrammed}}
@@ -129,7 +124,6 @@
             {{/if}}
           </div>
           
-          {{!-- Position Skills --}}
           {{#if this.skillsList}}
           <div class="position-skills">
             <label>Skills:</label>
@@ -143,7 +137,6 @@
           </div>
           {{/if}}
           
-          {{!-- Mounted Weapons - Compact Style --}}
           {{#if this.hasWeapons}}
           <div class="position-weapons-compact">
             <div class="weapons-header">
@@ -174,7 +167,6 @@
         </div>
         {{/each}}
         
-        {{!-- Add Position Card --}}
         {{#if editable}}
         <div class="position-card position-add-card">
           <button type="button" class="position-add">
@@ -186,7 +178,6 @@
       </div>
     </div>
 
-    {{!-- Weapons Tab --}}
     <div class="tab" data-group="primary" data-tab="weapons">
       
       <div class="items-header">
@@ -235,7 +226,6 @@
         {{/each}}
       </ol>
 
-      {{!-- Armor Section --}}
       <div class="items-header" style="margin-top: 30px;">
         <h3>Armor</h3>
       </div>
@@ -285,7 +275,6 @@
       </ol>
     </div>
 
-    {{!-- Upgrades Tab --}}
     <div class="tab" data-group="primary" data-tab="upgrades">
       
       <div class="items-header">
@@ -330,7 +319,6 @@
       {{/if}}
     </div>
 
-    {{!-- Cargo Tab --}}
     <div class="tab" data-group="primary" data-tab="cargo">
       
       <div class="items-header">
@@ -401,7 +389,6 @@
       {{/if}}
     </div>
 
-    {{!-- Damage Tab --}}
     <div class="tab" data-group="primary" data-tab="damage">
       
       <div class="items-header">
@@ -443,6 +430,21 @@
         {{/if}}
       </div>
       {{/if}}
+    </div>
+
+    <div class="tab" data-group="primary" data-tab="info">
+      <div class="form-group">
+        <label>Model</label>
+        <input type="text" name="system.information.alias" value="{{information.alias}}"/>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        {{editor enrichedDescription target="system.information.description" button=true engine="prosemirror" editable=editable}}
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        {{editor enrichedNotes target="system.information.notes" button=true engine="prosemirror" editable=editable}}
+      </div>
     </div>
 
   </section>

@@ -17,14 +17,14 @@ export class VehicleSheet extends ActorSheet {
 
   async _render(force = false, options = {}) {
     await super._render(force, options);
-    if (game.user.isGM) {
-      const syncedVersion = this.actor.getFlag('mmutons-cyberpunk-red-vas', 'permissionsSynced');
-      if (!syncedVersion) {
-        await this.actor.setFlag('mmutons-cyberpunk-red-vas', 'permissionsSynced', true);
-        const positions = this.actor.getFlag('mmutons-cyberpunk-red-vas', 'positions') || [];
-        await this._syncOccupantAccess(positions);
-      }
-    }
+    if (!game.user.isGM) return;
+    const syncedAt = this.actor.getFlag('mmutons-cyberpunk-red-vas', 'permissionsSynced');
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    if (syncedAt && (Date.now() - syncedAt) <= oneDayMs) return;
+    const positions = this.actor.getFlag('mmutons-cyberpunk-red-vas', 'positions') || [];
+    if (positions.length === 0) return;
+    await this._syncOccupantAccess(positions);
+    await this.actor.setFlag('mmutons-cyberpunk-red-vas', 'permissionsSynced', Date.now());
   }
 
   async getData(options) {
@@ -53,6 +53,10 @@ export class VehicleSheet extends ActorSheet {
     
     context.criticalInjuries = this.actor.items.filter(i => i.type === 'criticalInjury');
     
+    const rawInfo = this.actor.system.information || {};
+    context.information = rawInfo;
+    context.enrichedDescription = await TextEditor.enrichHTML(rawInfo.description || '', { async: true });
+    context.enrichedNotes = await TextEditor.enrichHTML(rawInfo.notes || '', { async: true });
     context.isOwner = this.actor.isOwner;
     context.editable = this.isEditable;
     
@@ -284,9 +288,12 @@ export class VehicleSheet extends ActorSheet {
       order: positions.length + 1,
       occupants: [],
       skills: '',
+      statMods: '',
       maxOccupants: 1,
       canControlWeapons: false,
-      grantsTokenControl: false
+      grantsTokenControl: false,
+      matchVehicleMove: false,
+      matchOccupantMove: false
     });
     
     await this.actor.setFlag('mmutons-cyberpunk-red-vas', 'positions', positions);
@@ -334,6 +341,22 @@ export class VehicleSheet extends ActorSheet {
             <label>Skills (comma-separated)</label>
             <input type="text" name="skills" value="${pos.skills || ''}" placeholder="Evasion"/>
           </div>
+          <div class="form-group">
+            <label>Stat Mod (e.g. REF:-2, DEX:+1)</label>
+            <input type="text" name="statMods" value="${pos.statMods || ''}" placeholder="REF:-2, DEX:+1"/>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" name="matchVehicleMove" ${pos.matchVehicleMove ? 'checked' : ''}/>
+              Match Occupant MOVE to Vehicle MOVE
+            </label>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" name="matchOccupantMove" ${pos.matchOccupantMove ? 'checked' : ''}/>
+              Match Vehicle MOVE to Occupant MOVE
+            </label>
+          </div>
 		  <div class="form-group">
             <label>
               <input type="checkbox" name="grantsTokenControl" ${pos.grantsTokenControl ? 'checked' : ''}/>
@@ -361,8 +384,11 @@ export class VehicleSheet extends ActorSheet {
               position.maxOccupants = Number(fd.maxOccupants);
               position.canControlWeapons = fd.canControlWeapons;
               position.skills = fd.skills;
+              position.statMods = fd.statMods || '';
               position.bulletproofGlass = fd.bulletproofGlass;
-			  position.grantsTokenControl = fd.grantsTokenControl;
+              position.grantsTokenControl = fd.grantsTokenControl;
+              position.matchVehicleMove = fd.matchVehicleMove || false;
+              position.matchOccupantMove = fd.matchOccupantMove || false;
               
               if (fd.bulletproofGlass) {
                 const newMax = Number(fd.glassHpMax);
@@ -392,6 +418,12 @@ export class VehicleSheet extends ActorSheet {
           } else {
             glassGroup.hide();
           }
+        });
+        html.find('[name="matchVehicleMove"]').change((e) => {
+          if (e.target.checked) html.find('[name="matchOccupantMove"]').prop('checked', false);
+        });
+        html.find('[name="matchOccupantMove"]').change((e) => {
+          if (e.target.checked) html.find('[name="matchVehicleMove"]').prop('checked', false);
         });
       }
     }).render(true);
@@ -701,9 +733,14 @@ async _onFireCheckboxToggle(event) {
   async _onOccupantDrop(event) {
     event.preventDefault();
     event.currentTarget.classList.remove('dragover');
-    
-    const data = JSON.parse(event.dataTransfer.getData('text/plain'));
-    if (data.type !== 'occupant') return;
+
+    let data;
+    try {
+      data = JSON.parse(event.dataTransfer.getData('text/plain'));
+    } catch (e) {
+      return;
+    }
+    if (!data || data.type !== 'occupant') return;
     
     const toPositionId = event.currentTarget.dataset.positionId;
     if (toPositionId === data.fromPosition) return;
@@ -832,7 +869,11 @@ async _onFireCheckboxToggle(event) {
         }
 
         const currentLevel = actor.ownership?.[user.id] ?? OWNERSHIP.NONE;
-        if (currentLevel !== highestLevel) {
+        const preserveGMPermissions = game.settings.get('mmutons-cyberpunk-red-vas', 'preserveGMPermissions');
+        const shouldUpdate = preserveGMPermissions
+          ? (highestLevel === OWNERSHIP.NONE ? currentLevel !== OWNERSHIP.NONE : highestLevel > currentLevel)
+          : currentLevel !== highestLevel;
+        if (shouldUpdate) {
           await actor.update({ [`ownership.${user.id}`]: highestLevel });
         }
 
@@ -854,6 +895,152 @@ async _onFireCheckboxToggle(event) {
     }
   }
 
+  static _parseStatMods(statMods) {
+    const statKeyMap = {
+      'REF':  'system.stats.ref.value',
+      'DEX':  'system.stats.dex.value',
+      'BODY': 'system.stats.body.value',
+      'COOL': 'system.stats.cool.value',
+      'WILL': 'system.stats.will.value',
+      'LUCK': 'system.stats.luck.value',
+      'TECH': 'system.stats.tech.value',
+      'INT':  'system.stats.int.value',
+      'MOVE': 'system.stats.move.value',
+      'EMP':  'system.stats.emp.value'
+    };
+    const changes = [];
+    if (!statMods) return changes;
+    for (const entry of statMods.split(',').map(s => s.trim()).filter(s => s)) {
+      const match = entry.match(/^([A-Z]+):([+-]?\d+)$/i);
+      if (!match) continue;
+      const key = statKeyMap[match[1].toUpperCase()];
+      if (!key) continue;
+      changes.push({ key, mode: 2, priority: null, value: String(Number(match[2])) });
+    }
+    return changes;
+  }
+
+  static _buildCprAe(name, changes, vehicleActorId, positionId) {
+    const cats = {};
+    const situational = {};
+    changes.forEach((_, i) => {
+      cats[String(i)] = 'stat';
+      situational[String(i)] = { isSituational: false, onByDefault: false };
+    });
+    return {
+      name,
+      type: 'base',
+      system: {},
+      img: 'modules/mmutons-cyberpunk-red-vas/assets/AE.svg',
+      changes,
+      disabled: false,
+      transfer: true,
+      tint: '#ffffff',
+      description: '',
+      origin: null,
+      statuses: [],
+      sort: 0,
+      duration: {
+        combat: null, rounds: null, seconds: null,
+        startRound: null, startTime: null, startTurn: null, turns: null
+      },
+      flags: {
+        'cyberpunk-red-core': {
+          changes: { cats, situational }
+        },
+        'mmutons-cyberpunk-red-vas': {
+          managedBy: vehicleActorId,
+          positionId
+        }
+      }
+    };
+  }
+
+  static _reconcileEffectsLocks = new Set();
+
+  static async reconcileEffects(actor) {
+    if (!game.user.isGM) return;
+    if (VehicleSheet._reconcileEffectsLocks.has(actor.id)) return;
+    VehicleSheet._reconcileEffectsLocks.add(actor.id);
+    try {
+      const positions = actor.getFlag('mmutons-cyberpunk-red-vas', 'positions') || [];
+
+      const desired = new Map();
+      for (const pos of positions) {
+        const changes = VehicleSheet._parseStatMods(pos.statMods);
+        if (pos.matchVehicleMove) {
+          const vehicleMove = actor.system.stats?.move?.value ?? 0;
+          changes.push({ key: 'system.stats.move.value', mode: 5, priority: null, value: String(vehicleMove) });
+        }
+        if (changes.length === 0) continue;
+        for (const uuid of (pos.occupants || [])) {
+          desired.set(uuid, { name: `VAS: ${pos.name}`, changes, positionId: pos.id });
+        }
+      }
+
+      const affectedActors = game.actors.filter(a =>
+        desired.has(a.uuid) ||
+        a.effects.some(e => e.getFlag('mmutons-cyberpunk-red-vas', 'managedBy') === actor.id)
+      );
+
+      for (const occupantActor of affectedActors) {
+        const toDelete = occupantActor.effects
+          .filter(e => e.getFlag('mmutons-cyberpunk-red-vas', 'managedBy') === actor.id)
+          .map(e => e.id);
+
+        if (toDelete.length > 0) {
+          await occupantActor.deleteEmbeddedDocuments('ActiveEffect', toDelete, { render: false });
+        }
+
+        const effectData = desired.get(occupantActor.uuid);
+        if (effectData) {
+          await occupantActor.createEmbeddedDocuments('ActiveEffect', [
+            VehicleSheet._buildCprAe(effectData.name, effectData.changes, actor.id, effectData.positionId)
+          ], { render: false });
+        }
+      }
+      const vehicleAeIds = actor.effects
+        .filter(e => e.getFlag('mmutons-cyberpunk-red-vas', 'occupantMovePos') !== undefined)
+        .map(e => e.id);
+      if (vehicleAeIds.length > 0) {
+        await actor.deleteEmbeddedDocuments('ActiveEffect', vehicleAeIds);
+      }
+
+      for (const pos of positions) {
+        if (!pos.matchOccupantMove || !pos.occupants?.length) continue;
+        const uuid = pos.occupants[0];
+        if (!uuid.startsWith('Actor.')) continue;
+        const occupantActor = game.actors.get(uuid.split('.')[1]);
+        if (!occupantActor) continue;
+        const occupantMove = occupantActor.system.stats?.move?.value ?? 0;
+        await actor.createEmbeddedDocuments('ActiveEffect', [{
+          name: `VAS: ${pos.name} (Pilot MOVE)`,
+          type: 'base',
+          system: {},
+          img: 'modules/mmutons-cyberpunk-red-vas/assets/AE.svg',
+          changes: [{ key: 'system.stats.move.value', mode: 5, priority: null, value: String(occupantMove) }],
+          disabled: false,
+          transfer: true,
+          tint: '#ffffff',
+          description: '',
+          origin: null,
+          statuses: [],
+          sort: 0,
+          duration: { combat: null, rounds: null, seconds: null, startRound: null, startTime: null, startTurn: null, turns: null },
+          flags: {
+            'cyberpunk-red-core': { changes: { cats: { '0': 'stat' }, situational: { '0': { isSituational: false, onByDefault: false } } } },
+            'mmutons-cyberpunk-red-vas': { occupantMovePos: pos.id }
+          }
+        }]);
+      }
+
+    } catch (error) {
+      console.error('VAS | reconcileEffects error:', error);
+    } finally {
+      VehicleSheet._reconcileEffectsLocks.delete(actor.id);
+    }
+  }
+
   _getActorOwner(actor) {
     const players = game.users.filter(u => !u.isGM);
     for (const user of players) {
@@ -872,6 +1059,7 @@ async _onFireCheckboxToggle(event) {
 
   async _syncOccupantAccess(positions = []) {
     await VehicleSheet.reconcilePermissions(this.actor);
+    await VehicleSheet.reconcileEffects(this.actor);
   }
 
   async _onDrop(event) {
@@ -920,7 +1108,7 @@ async _onFireCheckboxToggle(event) {
   async _onDropItem(event, data) {
     if (!this.actor.isOwner) return false;
     const item = await Item.implementation.fromDropData(data);
-    if (!item) return;
+    if (!item) return false;
 
     if (item.actor?.id === this.actor.id) {
       this._internalDrop = true;
