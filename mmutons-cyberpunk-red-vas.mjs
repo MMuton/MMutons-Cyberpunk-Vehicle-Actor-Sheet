@@ -1,8 +1,31 @@
-import { VehicleSheet } from './scripts/vehicle-sheet.mjs';
+import { VehicleSheet, PositionTemplateConfig } from './scripts/vehicle-sheet.mjs';
 
 Hooks.once('init', () => {
   Handlebars.registerHelper('cprFireMode', (actor, mode, weaponId) => {
     return actor.getFlag('cyberpunk-red-core', `firetype-${weaponId}`) === mode;
+  });
+
+  game.settings.register('mmutons-cyberpunk-red-vas', 'positionTemplates', {
+    scope: 'world',
+    config: false,
+    type: Array,
+    default: []
+  });
+
+  game.settings.registerMenu('mmutons-cyberpunk-red-vas', 'templateManager', {
+    name: 'Position Templates',
+    label: 'Manage Templates',
+    hint: 'Create, edit, and delete position templates for quick setup.',
+    icon: 'fas fa-clipboard-list',
+    type: PositionTemplateConfig,
+    restricted: true
+  });
+
+  game.settings.register('mmutons-cyberpunk-red-vas', 'templatesSeeded', {
+    scope: 'world',
+    config: false,
+    type: Boolean,
+    default: false
   });
 
   game.settings.register('mmutons-cyberpunk-red-vas', 'preserveGMPermissions', {
@@ -24,6 +47,11 @@ Hooks.once('setup', () => {
 });
 
 Hooks.once('ready', () => {
+  globalThis.VAS = {
+    exportTemplates: () => VehicleSheet.exportTemplates(),
+    importTemplates: (data) => VehicleSheet.importTemplates(data)
+  };
+
   Hooks.on('updateActor', async (actor, changes) => {
     if (!game.user.isGM) return;
     if (!foundry.utils.hasProperty(changes, 'flags.mmutons-cyberpunk-red-vas.positions')) return;
@@ -90,8 +118,9 @@ Hooks.once('ready', () => {
     });
   });
 
-  if (game.user.isGM) {
+   if (game.user.isGM) {
     (async () => {
+      await VehicleSheet.seedDefaultTemplates();
       const affectedActors = game.actors.filter(a =>
         a.effects.some(e => e.getFlag('mmutons-cyberpunk-red-vas', 'managedBy'))
       );

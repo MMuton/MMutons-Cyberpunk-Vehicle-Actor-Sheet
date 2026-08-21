@@ -2,6 +2,32 @@ import SystemUtils from '/systems/cyberpunk-red-core/modules/utils/cpr-systemUti
 
 const OWNERSHIP = { NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 };
 
+const DEFAULT_TEMPLATES = [
+  { id: 'default-back-seat', name: 'Back Seat', builtIn: false, maxOccupants: 2, canControlWeapons: false, bulletproofGlass: false, glassHpMax: 0, skills: 'Evasion', statMods: '', matchVehicleMove: false, matchOccupantMove: false, grantsTokenControl: false },
+  { id: 'default-cockpit', name: 'Cockpit', builtIn: false, maxOccupants: 1, canControlWeapons: true, bulletproofGlass: false, glassHpMax: 0, skills: 'Pilot Air Vehicle, Air Vehicle Tech, Evasion', statMods: '', matchVehicleMove: false, matchOccupantMove: false, grantsTokenControl: true },
+  { id: 'default-co-pilot', name: 'Co-Pilot', builtIn: false, maxOccupants: 1, canControlWeapons: true, bulletproofGlass: false, glassHpMax: 0, skills: 'Pilot Air Vehicle, Air Vehicle Tech, Evasion', statMods: '', matchVehicleMove: false, matchOccupantMove: false, grantsTokenControl: false },
+  { id: 'default-drivers-seat', name: 'Driver\'s Seat', builtIn: false, maxOccupants: 1, canControlWeapons: true, bulletproofGlass: false, glassHpMax: 0, skills: 'Drive Land Vehicle, Land Vehicle Tech, Evasion', statMods: '', matchVehicleMove: false, matchOccupantMove: false, grantsTokenControl: true },
+  { id: 'default-gunner', name: 'Gunner', builtIn: false, maxOccupants: 1, canControlWeapons: true, bulletproofGlass: false, glassHpMax: 0, skills: '', statMods: '', matchVehicleMove: false, matchOccupantMove: false, grantsTokenControl: true },
+  { id: 'default-helm', name: 'Helm', builtIn: false, maxOccupants: 1, canControlWeapons: true, bulletproofGlass: false, glassHpMax: 0, skills: 'Pilot Sea Vehicle, Sea Vehicle Tech, Evasion', statMods: '', matchVehicleMove: false, matchOccupantMove: false, grantsTokenControl: true },
+  { id: 'default-passenger-seat', name: 'Passenger Seat', builtIn: false, maxOccupants: 1, canControlWeapons: false, bulletproofGlass: false, glassHpMax: 0, skills: 'Evasion', statMods: '', matchVehicleMove: false, matchOccupantMove: false, grantsTokenControl: false },
+  { id: 'default-port-side', name: 'Port Side', builtIn: false, maxOccupants: 2, canControlWeapons: true, bulletproofGlass: false, glassHpMax: 0, skills: 'Evasion', statMods: '', matchVehicleMove: false, matchOccupantMove: false, grantsTokenControl: false },
+  { id: 'default-starboard-side', name: 'Starboard Side', builtIn: false, maxOccupants: 2, canControlWeapons: true, bulletproofGlass: false, glassHpMax: 0, skills: '', statMods: '', matchVehicleMove: false, matchOccupantMove: false, grantsTokenControl: false },
+  { id: 'default-turret', name: 'Turret', builtIn: false, maxOccupants: 1, canControlWeapons: true, bulletproofGlass: false, glassHpMax: 0, skills: 'Evasion', statMods: '', matchVehicleMove: false, matchOccupantMove: false, grantsTokenControl: true }
+];
+
+export class PositionTemplateConfig extends FormApplication {
+  static get defaultOptions() {
+    return foundry.utils.mergeObject(super.defaultOptions, { id: 'vas-template-config' });
+  }
+
+  render() {
+    VehicleSheet.openTemplateManager();
+    return this;
+  }
+
+  async _updateObject() {}
+}
+
 export class VehicleSheet extends ActorSheet {
 
   static get defaultOptions() {
@@ -309,6 +335,9 @@ export class VehicleSheet extends ActorSheet {
       title: `Edit Position: ${pos.name}`,
       content: `
         <form>
+          <button type="button" class="vas-template-btn">
+            <i class="fas fa-clipboard-list"></i> Templates
+          </button>
           <div class="form-group">
             <label>Position Name</label>
             <input type="text" name="name" value="${pos.name}"/>
@@ -411,6 +440,7 @@ export class VehicleSheet extends ActorSheet {
       },
       default: 'save',
       render: (html) => {
+        html.find('.vas-template-btn').click(() => VehicleSheet._showTemplatePicker(html));
         html.find('.glass-checkbox').change((e) => {
           const glassGroup = html.find('.glass-hp-group');
           if (e.target.checked) {
@@ -426,7 +456,7 @@ export class VehicleSheet extends ActorSheet {
           if (e.target.checked) html.find('[name="matchVehicleMove"]').prop('checked', false);
         });
       }
-    }).render(true);
+    }, { classes: ['dialog', 'vas-dialog'] }).render(true);
   }
 
   async _onPositionDelete(event) {
@@ -1232,5 +1262,347 @@ async _onFireCheckboxToggle(event) {
       },
       default: 'split'
     }).render(true);
+  }
+
+   static _getTemplates() {
+    return foundry.utils.deepClone(
+      game.settings.get('mmutons-cyberpunk-red-vas', 'positionTemplates') || []
+    );
+  }
+
+  static async _saveTemplates(templates) {
+    await game.settings.set('mmutons-cyberpunk-red-vas', 'positionTemplates', templates);
+  }
+
+  static async seedDefaultTemplates() {
+    if (game.settings.get('mmutons-cyberpunk-red-vas', 'templatesSeeded')) return;
+    const existing = game.settings.get('mmutons-cyberpunk-red-vas', 'positionTemplates') || [];
+    await game.settings.set('mmutons-cyberpunk-red-vas', 'positionTemplates', [...DEFAULT_TEMPLATES, ...existing]);
+    await game.settings.set('mmutons-cyberpunk-red-vas', 'templatesSeeded', true);
+  }
+
+  static _templateFields(t) {
+    return {
+      id: t.id || foundry.utils.randomID(),
+      name: t.name || 'Unnamed Template',
+      builtIn: t.builtIn || false,
+      maxOccupants: Number(t.maxOccupants) || 1,
+      canControlWeapons: t.canControlWeapons || false,
+      bulletproofGlass: t.bulletproofGlass || false,
+      glassHpMax: Number(t.glassHpMax) || 0,
+      skills: t.skills || '',
+      statMods: t.statMods || '',
+      matchVehicleMove: t.matchVehicleMove || false,
+      matchOccupantMove: t.matchOccupantMove || false,
+      grantsTokenControl: t.grantsTokenControl || false
+    };
+  }
+
+  static _showTemplatePicker(editFormHtml) {
+    const templates = VehicleSheet._getTemplates();
+    let content = '';
+    if (templates.length > 0) {
+      templates.forEach(t => {
+        content += `<a class="vas-template-pick" data-id="${t.id}">${t.name}</a>`;
+      });
+    } else {
+      content += '<p class="vas-no-templates">No templates saved</p>';
+    }
+
+    const picker = new Dialog({
+      title: 'Position Templates',
+      content: `<div class="vas-template-picker">${content}</div>`,
+      buttons: {
+        save: {
+          icon: '<i class="fas fa-save"></i>',
+          label: 'Save Current',
+          callback: () => VehicleSheet._saveCurrentAsTemplate(editFormHtml)
+        },
+        manage: {
+          icon: '<i class="fas fa-cog"></i>',
+          label: 'Manage',
+          callback: () => VehicleSheet.openTemplateManager()
+        },
+        cancel: { label: 'Cancel' }
+      },
+      default: 'cancel',
+      render: (pickerHtml) => {
+        pickerHtml.find('.vas-template-pick').click(ev => {
+          const id = ev.currentTarget.dataset.id;
+          const template = templates.find(t => t.id === id);
+          if (template) {
+            VehicleSheet._applyTemplateToForm(editFormHtml, template);
+            picker.close();
+          }
+        });
+      }
+    }, { classes: ['dialog', 'vas-dialog'] });
+    picker.render(true);
+  }
+
+  static _applyTemplateToForm(html, template) {
+    html.find('[name="name"]').val(template.name);
+    html.find('[name="maxOccupants"]').val(template.maxOccupants || 1);
+    html.find('[name="canControlWeapons"]').prop('checked', template.canControlWeapons || false);
+    html.find('[name="bulletproofGlass"]').prop('checked', template.bulletproofGlass || false);
+    html.find('[name="glassHpMax"]').val(template.glassHpMax || 0);
+    html.find('.glass-hp-group')[template.bulletproofGlass ? 'show' : 'hide']();
+    html.find('[name="skills"]').val(template.skills || '');
+    html.find('[name="statMods"]').val(template.statMods || '');
+    html.find('[name="matchVehicleMove"]').prop('checked', template.matchVehicleMove || false);
+    html.find('[name="matchOccupantMove"]').prop('checked', template.matchOccupantMove || false);
+    html.find('[name="grantsTokenControl"]').prop('checked', template.grantsTokenControl || false);
+  }
+
+  static _saveCurrentAsTemplate(editFormHtml) {
+    const form = editFormHtml.find('form')[0];
+    if (!form) return;
+    const fd = new FormDataExtended(form).object;
+
+    new Dialog({
+      title: 'Save as Template',
+      content: `
+        <form>
+          <div class="form-group">
+            <label>Template Name</label>
+            <input type="text" name="templateName" value="${fd.name || ''}" autofocus/>
+          </div>
+        </form>
+      `,
+      buttons: {
+        save: {
+          icon: '<i class="fas fa-save"></i>',
+          label: 'Save',
+          callback: async (html) => {
+            const name = html.find('[name="templateName"]').val() || 'Unnamed Template';
+            const templates = VehicleSheet._getTemplates();
+            templates.push(VehicleSheet._templateFields({
+              id: foundry.utils.randomID(),
+              name,
+              maxOccupants: fd.maxOccupants,
+              canControlWeapons: fd.canControlWeapons,
+              bulletproofGlass: fd.bulletproofGlass,
+              glassHpMax: fd.glassHpMax,
+              skills: fd.skills,
+              statMods: fd.statMods,
+              matchVehicleMove: fd.matchVehicleMove,
+              matchOccupantMove: fd.matchOccupantMove,
+              grantsTokenControl: fd.grantsTokenControl
+            }));
+            await VehicleSheet._saveTemplates(templates);
+            ui.notifications.info(`Template "${name}" saved`);
+          }
+        },
+        cancel: { label: 'Cancel' }
+      },
+      default: 'save'
+    }, { classes: ['dialog', 'vas-dialog'] }).render(true);
+  }
+
+  static openTemplateManager() {
+    const render = () => {
+      const templates = VehicleSheet._getTemplates();
+      let content = '';
+      if (templates.length > 0) {
+        templates.forEach(t => {
+                    content += `
+            <div class="vas-template-entry" data-id="${t.id}">
+              <span class="vas-template-entry-name">${t.name}</span>
+              <div class="vas-template-entry-controls">
+                <a class="template-edit" data-id="${t.id}" title="Edit"><i class="fas fa-edit"></i></a>
+                <a class="template-delete" data-id="${t.id}" title="Delete"><i class="fas fa-trash"></i></a>
+              </div>
+            </div>`;
+        });
+      } else {
+        content = '<p class="vas-no-templates">No templates saved</p>';
+      }
+
+      const d = new Dialog({
+        title: 'Manage Position Templates',
+        content: `<div class="vas-template-manager">${content}</div>`,
+        buttons: {
+          add: {
+            icon: '<i class="fas fa-plus"></i>',
+            label: 'New Template',
+            callback: () => VehicleSheet._editTemplateDialog(null, render)
+          },
+          close: { label: 'Close' }
+        },
+        default: 'close',
+        render: (html) => {
+          html.find('.template-edit').click(ev => {
+            const id = ev.currentTarget.dataset.id;
+            const template = VehicleSheet._getTemplates().find(t => t.id === id);
+            if (template) {
+              d.close();
+              VehicleSheet._editTemplateDialog(template, render);
+            }
+          });
+          html.find('.template-delete').click(async ev => {
+            const id = ev.currentTarget.dataset.id;
+            const confirmed = await Dialog.confirm({
+              title: 'Delete Template',
+              content: '<p>Delete this template?</p>'
+            });
+            if (confirmed) {
+              const templates = VehicleSheet._getTemplates().filter(t => t.id !== id);
+              await VehicleSheet._saveTemplates(templates);
+              d.close();
+              render();
+            }
+          });
+        }
+      }, { classes: ['dialog', 'vas-dialog'] });
+      d.render(true);
+    };
+    render();
+  }
+
+  static _editTemplateDialog(template, onComplete) {
+    const isNew = !template;
+    const t = template || {
+      id: foundry.utils.randomID(),
+      name: '',
+      builtIn: false,
+      maxOccupants: 1,
+      canControlWeapons: false,
+      bulletproofGlass: false,
+      glassHpMax: 0,
+      skills: '',
+      statMods: '',
+      matchVehicleMove: false,
+      matchOccupantMove: false,
+      grantsTokenControl: false
+    };
+
+    new Dialog({
+      title: isNew ? 'New Template' : `Edit Template: ${t.name}`,
+      content: `
+        <form>
+          <div class="form-group">
+            <label>Template Name</label>
+            <input type="text" name="name" value="${t.name}"/>
+          </div>
+          <div class="form-group">
+            <label>Max Occupants</label>
+            <input type="number" name="maxOccupants" value="${t.maxOccupants || 1}" min="1"/>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" name="canControlWeapons" ${t.canControlWeapons ? 'checked' : ''}/>
+              Can Control Weapons
+            </label>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" name="bulletproofGlass" class="glass-checkbox" ${t.bulletproofGlass ? 'checked' : ''}/>
+              Bulletproof Glass
+            </label>
+          </div>
+          <div class="form-group glass-hp-group" style="display: ${t.bulletproofGlass ? 'block' : 'none'};">
+            <label>Glass HP Max</label>
+            <input type="number" name="glassHpMax" value="${t.glassHpMax || 0}" min="0"/>
+          </div>
+          <div class="form-group">
+            <label>Skills (comma-separated)</label>
+            <input type="text" name="skills" value="${t.skills || ''}" placeholder="Evasion"/>
+          </div>
+          <div class="form-group">
+            <label>Stat Mod (e.g. REF:-2, DEX:+1)</label>
+            <input type="text" name="statMods" value="${t.statMods || ''}" placeholder="REF:-2, DEX:+1"/>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" name="matchVehicleMove" ${t.matchVehicleMove ? 'checked' : ''}/>
+              Match Occupant MOVE to Vehicle MOVE
+            </label>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" name="matchOccupantMove" ${t.matchOccupantMove ? 'checked' : ''}/>
+              Match Vehicle MOVE to Occupant MOVE
+            </label>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" name="grantsTokenControl" ${t.grantsTokenControl ? 'checked' : ''}/>
+              Grants Vehicle Token Control
+            </label>
+          </div>
+        </form>
+      `,
+      buttons: {
+        save: {
+          icon: '<i class="fas fa-save"></i>',
+          label: 'Save',
+          callback: async (html) => {
+            const form = html[0].querySelector('form');
+            const fd = new FormDataExtended(form).object;
+            const templates = VehicleSheet._getTemplates();
+            const updated = VehicleSheet._templateFields({
+              id: t.id,
+              name: fd.name,
+              builtIn: t.builtIn,
+              maxOccupants: fd.maxOccupants,
+              canControlWeapons: fd.canControlWeapons,
+              bulletproofGlass: fd.bulletproofGlass,
+              glassHpMax: fd.glassHpMax,
+              skills: fd.skills,
+              statMods: fd.statMods,
+              matchVehicleMove: fd.matchVehicleMove,
+              matchOccupantMove: fd.matchOccupantMove,
+              grantsTokenControl: fd.grantsTokenControl
+            });
+            const idx = templates.findIndex(x => x.id === t.id);
+            if (idx >= 0) templates[idx] = updated;
+            else templates.push(updated);
+            await VehicleSheet._saveTemplates(templates);
+            if (onComplete) onComplete();
+          }
+        },
+        cancel: {
+          label: 'Cancel',
+          callback: () => { if (onComplete) onComplete(); }
+        }
+      },
+      default: 'save',
+      render: (html) => {
+        html.find('.glass-checkbox').change(e => {
+          html.find('.glass-hp-group')[e.target.checked ? 'show' : 'hide']();
+        });
+        html.find('[name="matchVehicleMove"]').change(e => {
+          if (e.target.checked) html.find('[name="matchOccupantMove"]').prop('checked', false);
+        });
+        html.find('[name="matchOccupantMove"]').change(e => {
+          if (e.target.checked) html.find('[name="matchVehicleMove"]').prop('checked', false);
+        });
+      }
+    }, { classes: ['dialog', 'vas-dialog'] }).render(true);
+  }
+
+  static exportTemplates() {
+    const templates = VehicleSheet._getTemplates();
+    const json = JSON.stringify(templates, null, 2);
+    console.log('VAS | Position Templates Export:');
+    console.log(json);
+    return json;
+  }
+
+  static async importTemplates(data) {
+    const templates = typeof data === 'string' ? JSON.parse(data) : data;
+    if (!Array.isArray(templates)) {
+      console.error('VAS | Import data must be an array of templates');
+      return;
+    }
+    const existing = VehicleSheet._getTemplates();
+    const existingIds = new Set(existing.map(t => t.id));
+    const incoming = templates.map(t => VehicleSheet._templateFields({
+      ...t,
+      id: existingIds.has(t.id) ? foundry.utils.randomID() : (t.id || foundry.utils.randomID())
+    }));
+    await VehicleSheet._saveTemplates([...existing, ...incoming]);
+    console.log(`VAS | Imported ${incoming.length} template(s)`);
+    ui.notifications.info(`Imported ${incoming.length} template(s)`);
   }
 }
