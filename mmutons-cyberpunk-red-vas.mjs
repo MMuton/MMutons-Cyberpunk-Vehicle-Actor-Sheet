@@ -1,4 +1,5 @@
 import { VehicleSheet, PositionTemplateConfig } from './scripts/vehicle-sheet.mjs';
+import { initRideableCompat } from './scripts/rideable-compat.mjs';
 
 Hooks.once('init', () => {
   Handlebars.registerHelper('cprFireMode', (actor, mode, weaponId) => {
@@ -36,6 +37,28 @@ Hooks.once('init', () => {
     type: Boolean,
     default: true
   });
+
+  game.settings.register('mmutons-cyberpunk-red-vas', 'rideableIntegration', {
+    name: 'Rideable Integration',
+    hint: 'When enabled and the "Rideable" module is active, mounting a token onto a VAS vehicle prompts for an available seat, and dismounting removes the occupant. Only linked tokens are seated (unlinked tokens ride as a normal Rideable mount). VAS seat limits override Rideable\'s rider cap.',
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false
+  });
+
+  game.settings.register('mmutons-cyberpunk-red-vas', 'seatSelection', {
+    name: 'Rideable Seat Selection',
+    hint: 'Who picks the seat when a token mounts a VAS vehicle via Rideable. "GM assigns" shows the picker to the GM. "Players choose" shows it to the mounting player and the GM commits the choice automatically (a GM must be online).',
+    scope: 'world',
+    config: true,
+    type: String,
+    choices: {
+      gm: 'GM assigns seats',
+      players: 'Players choose their seats'
+    },
+    default: 'gm'
+  });
 });
 
 Hooks.once('setup', () => {
@@ -51,6 +74,8 @@ Hooks.once('ready', () => {
     exportTemplates: () => VehicleSheet.exportTemplates(),
     importTemplates: (data) => VehicleSheet.importTemplates(data)
   };
+
+  initRideableCompat();
 
   Hooks.on('updateActor', async (actor, changes) => {
     if (!game.user.isGM) return;

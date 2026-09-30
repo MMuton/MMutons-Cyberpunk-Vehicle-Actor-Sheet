@@ -30,6 +30,8 @@ export class PositionTemplateConfig extends FormApplication {
 
 export class VehicleSheet extends ActorSheet {
 
+  static _rideableSyncGuard = new Set();
+
   static get defaultOptions() {
     return foundry.utils.mergeObject(super.defaultOptions, {
       classes: ["cyberpunk-red", "sheet", "actor", "vas-vehicle"],
@@ -319,7 +321,8 @@ export class VehicleSheet extends ActorSheet {
       canControlWeapons: false,
       grantsTokenControl: false,
       matchVehicleMove: false,
-      matchOccupantMove: false
+      matchOccupantMove: false,
+      matchOccupantRef: false
     });
     
     await this.actor.setFlag('mmutons-cyberpunk-red-vas', 'positions', positions);
@@ -371,7 +374,7 @@ export class VehicleSheet extends ActorSheet {
             <input type="text" name="skills" value="${pos.skills || ''}" placeholder="Evasion"/>
           </div>
           <div class="form-group">
-            <label>Stat Mod (e.g. REF:-2, DEX:+1)</label>
+            <label>Stat Mod (e.g. REF:-2, DEX:+1, REF:=2)</label>
             <input type="text" name="statMods" value="${pos.statMods || ''}" placeholder="REF:-2, DEX:+1"/>
           </div>
           <div class="form-group">
@@ -384,6 +387,12 @@ export class VehicleSheet extends ActorSheet {
             <label>
               <input type="checkbox" name="matchOccupantMove" ${pos.matchOccupantMove ? 'checked' : ''}/>
               Match Vehicle MOVE to Occupant MOVE
+            </label>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" name="matchOccupantRef" ${pos.matchOccupantRef ? 'checked' : ''}/>
+              Set Vehicle REF to Occupant REF (Initiative)
             </label>
           </div>
 		  <div class="form-group">
@@ -418,6 +427,7 @@ export class VehicleSheet extends ActorSheet {
               position.grantsTokenControl = fd.grantsTokenControl;
               position.matchVehicleMove = fd.matchVehicleMove || false;
               position.matchOccupantMove = fd.matchOccupantMove || false;
+              position.matchOccupantRef = fd.matchOccupantRef || false;
               
               if (fd.bulletproofGlass) {
                 const newMax = Number(fd.glassHpMax);
@@ -491,6 +501,33 @@ export class VehicleSheet extends ActorSheet {
       pos.occupants = (pos.occupants || []).filter(u => u !== occUuid);
       await this.actor.setFlag('mmutons-cyberpunk-red-vas', 'positions', positions);
       await this._revokeVehicleAccess(occUuid);
+      await this._rideableDismount(occUuid);
+    }
+  }
+
+  async _rideableDismount(occUuid) {
+    try {
+      if (!game.settings.get('mmutons-cyberpunk-red-vas', 'rideableIntegration')) return;
+      const rideable = game.modules.get('Rideable');
+      if (!rideable?.active || !game.Rideable?.UnMount) return;
+
+      const vehToken = this.token
+        ?? canvas?.scene?.tokens?.find(t => t.actorId === this.actor.id);
+      if (!vehToken) return;
+
+      const riders = rideable.api?.RideableFlags?.RiderTokens?.(vehToken) || [];
+      const toDismount = riders.filter(rt => (rt?.actor?.uuid) === occUuid);
+      if (toDismount.length === 0) return;
+
+      const key = `${this.actor.id}:${occUuid}`;
+      VehicleSheet._rideableSyncGuard.add(key);
+      try {
+        await game.Rideable.UnMount(toDismount);
+      } finally {
+        setTimeout(() => VehicleSheet._rideableSyncGuard.delete(key), 2000);
+      }
+    } catch (error) {
+      console.error('VAS | _rideableDismount error:', error);
     }
   }
 
@@ -941,11 +978,12 @@ async _onFireCheckboxToggle(event) {
     const changes = [];
     if (!statMods) return changes;
     for (const entry of statMods.split(',').map(s => s.trim()).filter(s => s)) {
-      const match = entry.match(/^([A-Z]+):([+-]?\d+)$/i);
+      const match = entry.match(/^([A-Z]+):(=)?([+-]?\d+)$/i);
       if (!match) continue;
       const key = statKeyMap[match[1].toUpperCase()];
       if (!key) continue;
-      changes.push({ key, mode: 2, priority: null, value: String(Number(match[2])) });
+      const mode = match[2] === '=' ? 5 : 2;
+      changes.push({ key, mode, priority: null, value: String(Number(match[3])) });
     }
     return changes;
   }
@@ -1030,7 +1068,7 @@ async _onFireCheckboxToggle(event) {
         }
       }
       const vehicleAeIds = actor.effects
-        .filter(e => e.getFlag('mmutons-cyberpunk-red-vas', 'occupantMovePos') !== undefined)
+        .filter(e => e.getFlag('mmutons-cyberpunk-red-vas', 'occupantMovePos') !== undefined || e.getFlag('mmutons-cyberpunk-red-vas', 'occupantRefPos') !== undefined)
         .map(e => e.id);
       if (vehicleAeIds.length > 0) {
         await actor.deleteEmbeddedDocuments('ActiveEffect', vehicleAeIds);
@@ -1060,6 +1098,34 @@ async _onFireCheckboxToggle(event) {
           flags: {
             'cyberpunk-red-core': { changes: { cats: { '0': 'stat' }, situational: { '0': { isSituational: false, onByDefault: false } } } },
             'mmutons-cyberpunk-red-vas': { occupantMovePos: pos.id }
+          }
+        }]);
+      }
+
+      for (const pos of positions) {
+        if (!pos.matchOccupantRef || !pos.occupants?.length) continue;
+        const uuid = pos.occupants[0];
+        if (!uuid.startsWith('Actor.')) continue;
+        const occupantActor = game.actors.get(uuid.split('.')[1]);
+        if (!occupantActor) continue;
+        const occupantRef = occupantActor.system.stats?.ref?.value ?? 0;
+        await actor.createEmbeddedDocuments('ActiveEffect', [{
+          name: `VAS: ${pos.name} (Driver REF)`,
+          type: 'base',
+          system: {},
+          img: 'modules/mmutons-cyberpunk-red-vas/assets/AE.svg',
+          changes: [{ key: 'system.stats.ref.value', mode: 5, priority: null, value: String(occupantRef) }],
+          disabled: false,
+          transfer: true,
+          tint: '#ffffff',
+          description: '',
+          origin: null,
+          statuses: [],
+          sort: 0,
+          duration: { combat: null, rounds: null, seconds: null, startRound: null, startTime: null, startTurn: null, turns: null },
+          flags: {
+            'cyberpunk-red-core': { changes: { cats: { '0': 'stat' }, situational: { '0': { isSituational: false, onByDefault: false } } } },
+            'mmutons-cyberpunk-red-vas': { occupantRefPos: pos.id }
           }
         }]);
       }
@@ -1294,6 +1360,7 @@ async _onFireCheckboxToggle(event) {
       statMods: t.statMods || '',
       matchVehicleMove: t.matchVehicleMove || false,
       matchOccupantMove: t.matchOccupantMove || false,
+      matchOccupantRef: t.matchOccupantRef || false,
       grantsTokenControl: t.grantsTokenControl || false
     };
   }
@@ -1351,6 +1418,7 @@ async _onFireCheckboxToggle(event) {
     html.find('[name="statMods"]').val(template.statMods || '');
     html.find('[name="matchVehicleMove"]').prop('checked', template.matchVehicleMove || false);
     html.find('[name="matchOccupantMove"]').prop('checked', template.matchOccupantMove || false);
+    html.find('[name="matchOccupantRef"]').prop('checked', template.matchOccupantRef || false);
     html.find('[name="grantsTokenControl"]').prop('checked', template.grantsTokenControl || false);
   }
 
@@ -1387,6 +1455,7 @@ async _onFireCheckboxToggle(event) {
               statMods: fd.statMods,
               matchVehicleMove: fd.matchVehicleMove,
               matchOccupantMove: fd.matchOccupantMove,
+              matchOccupantRef: fd.matchOccupantRef,
               grantsTokenControl: fd.grantsTokenControl
             }));
             await VehicleSheet._saveTemplates(templates);
@@ -1509,7 +1578,7 @@ async _onFireCheckboxToggle(event) {
             <input type="text" name="skills" value="${t.skills || ''}" placeholder="Evasion"/>
           </div>
           <div class="form-group">
-            <label>Stat Mod (e.g. REF:-2, DEX:+1)</label>
+            <label>Stat Mod (e.g. REF:-2, DEX:+1, REF:=2)</label>
             <input type="text" name="statMods" value="${t.statMods || ''}" placeholder="REF:-2, DEX:+1"/>
           </div>
           <div class="form-group">
@@ -1522,6 +1591,12 @@ async _onFireCheckboxToggle(event) {
             <label>
               <input type="checkbox" name="matchOccupantMove" ${t.matchOccupantMove ? 'checked' : ''}/>
               Match Vehicle MOVE to Occupant MOVE
+            </label>
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" name="matchOccupantRef" ${t.matchOccupantRef ? 'checked' : ''}/>
+              Set Vehicle REF to Occupant REF (Initiative)
             </label>
           </div>
           <div class="form-group">
@@ -1552,6 +1627,7 @@ async _onFireCheckboxToggle(event) {
               statMods: fd.statMods,
               matchVehicleMove: fd.matchVehicleMove,
               matchOccupantMove: fd.matchOccupantMove,
+              matchOccupantRef: fd.matchOccupantRef,
               grantsTokenControl: fd.grantsTokenControl
             });
             const idx = templates.findIndex(x => x.id === t.id);

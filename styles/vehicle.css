@@ -31,6 +31,19 @@ html[data-cpr-theme="darkmode"] .vas-vehicle {
 }
 
 .vas-vehicle {
+  --color-accent:     #232b2b;
+  --color-bg-dark:    #232b2b;
+  --color-bg-panel:   #52606d;
+  --color-bg-fill:    #3b3b3b;
+  --color-bg-black:   #232b2b;
+  --color-border:     #999999;
+  --color-text:       #eaeaea;
+  --color-text-dim:   #9e9f9f;
+  --color-success:    #609040;
+  --color-failure:    #c62828;
+  --color-tab-active: #5a6a78;
+  --color-white:      #eaeaea;
+  --color-card-fill:  #3b3b3b;
   --vas-bg-sheet:   var(--color-bg-dark);
   --vas-bg-block:   var(--color-bg-panel);
   --vas-bg-inset:   var(--color-bg-fill);
