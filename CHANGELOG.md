@@ -1,7 +1,7 @@
 ## 2.6
 - Fixed the issues with the module not working with custom themes. (I think?)
-- Added a compatability setting for the Rideable module. With it enabled, when someone mounts a rideable token that uses the VAS sheet, a dialogue asking where they want to sit opens up. Dismounting also removed the token from the seat.
-- Stat Mods now support an override modifier, alongside the existing add/subtract modifiers. Use `=` to set a stat to a fixed value. (e.g. BODY=12, especially useful for ACPA's and Linear Frames!)
+- Added a compatibility setting for the Rideable module. With it enabled, when someone mounts a rideable token that uses the VAS sheet, a dialogue asking where they want to sit opens up. Dismounting also removed the token from the seat.
+- Stat Mods now support an override modifier, alongside the existing add/subtract modifiers. Use `=` to set a stat to a fixed value. (e.g. BODY:=12, especially useful for ACPA's and Linear Frames!)
 
 ## 2.5
 New feature: Templates (Idea by LT-ATLAS on Discord)
