@@ -31,7 +31,7 @@ Hooks.once('init', () => {
 
   game.settings.register('mmutons-cyberpunk-red-vas', 'preserveGMPermissions', {
     name: 'Preserve GM-set Permissions',
-    hint: 'When enabled, VAS will never downgrade permissions the GM has manually set above what VAS would calculate. Disable to let VAS fully manage all vehicle permissions.',
+    hint: 'When enabled, VAS only ever raises a player\'s access to the vehicle and never lowers it, so permissions you set manually are preserved (note: leaving a seat will not auto-revoke access). Disable to let VAS fully manage and revoke vehicle permissions.',
     scope: 'world',
     config: true,
     type: Boolean,

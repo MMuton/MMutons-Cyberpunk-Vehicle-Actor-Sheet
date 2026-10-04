@@ -935,26 +935,27 @@ async _onFireCheckboxToggle(event) {
           if (pos.grantsTokenControl) needsTokenControl = true;
         }
 
-        const currentLevel = actor.ownership?.[user.id] ?? OWNERSHIP.NONE;
         const preserveGMPermissions = game.settings.get('mmutons-cyberpunk-red-vas', 'preserveGMPermissions');
-        const shouldUpdate = preserveGMPermissions
-          ? (highestLevel === OWNERSHIP.NONE ? currentLevel !== OWNERSHIP.NONE : highestLevel > currentLevel)
-          : currentLevel !== highestLevel;
-        if (shouldUpdate) {
-          await actor.update({ [`ownership.${user.id}`]: highestLevel });
+
+        const currentLevel = actor.ownership?.[user.id] ?? OWNERSHIP.NONE;
+        const targetActorLevel = preserveGMPermissions ? Math.max(highestLevel, currentLevel) : highestLevel;
+        if (targetActorLevel !== currentLevel) {
+          await actor.update({ [`ownership.${user.id}`]: targetActorLevel });
         }
 
         const targetTokenLevel = needsTokenControl ? OWNERSHIP.OWNER : OWNERSHIP.NONE;
         const sceneTokens = canvas.scene?.tokens?.filter(t => t.actorId === actor.id) || [];
         for (const tokenDoc of sceneTokens) {
           const curr = tokenDoc.ownership?.[user.id] ?? OWNERSHIP.NONE;
-          if (curr !== targetTokenLevel) {
-            await tokenDoc.update({ [`ownership.${user.id}`]: targetTokenLevel });
+          const target = preserveGMPermissions ? Math.max(targetTokenLevel, curr) : targetTokenLevel;
+          if (target !== curr) {
+            await tokenDoc.update({ [`ownership.${user.id}`]: target });
           }
         }
         const protoLevel = actor.prototypeToken?.ownership?.[user.id] ?? OWNERSHIP.NONE;
-        if (protoLevel !== targetTokenLevel) {
-          await actor.update({ [`prototypeToken.ownership.${user.id}`]: targetTokenLevel });
+        const protoTarget = preserveGMPermissions ? Math.max(targetTokenLevel, protoLevel) : targetTokenLevel;
+        if (protoTarget !== protoLevel) {
+          await actor.update({ [`prototypeToken.ownership.${user.id}`]: protoTarget });
         }
       }
     } catch (error) {
@@ -1025,11 +1026,28 @@ async _onFireCheckboxToggle(event) {
   }
 
   static _reconcileEffectsLocks = new Set();
+  static _reconcileEffectsDirty = new Set();
 
   static async reconcileEffects(actor) {
     if (!game.user.isGM) return;
-    if (VehicleSheet._reconcileEffectsLocks.has(actor.id)) return;
+    if (VehicleSheet._reconcileEffectsLocks.has(actor.id)) {
+      VehicleSheet._reconcileEffectsDirty.add(actor.id);
+      return;
+    }
     VehicleSheet._reconcileEffectsLocks.add(actor.id);
+    try {
+      let passes = 0;
+      do {
+        VehicleSheet._reconcileEffectsDirty.delete(actor.id);
+        await VehicleSheet._reconcileEffectsRun(actor);
+      } while (VehicleSheet._reconcileEffectsDirty.has(actor.id) && ++passes < 10);
+    } finally {
+      VehicleSheet._reconcileEffectsLocks.delete(actor.id);
+      VehicleSheet._reconcileEffectsDirty.delete(actor.id);
+    }
+  }
+
+  static async _reconcileEffectsRun(actor) {
     try {
       const positions = actor.getFlag('mmutons-cyberpunk-red-vas', 'positions') || [];
 
@@ -1132,8 +1150,6 @@ async _onFireCheckboxToggle(event) {
 
     } catch (error) {
       console.error('VAS | reconcileEffects error:', error);
-    } finally {
-      VehicleSheet._reconcileEffectsLocks.delete(actor.id);
     }
   }
 

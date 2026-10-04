@@ -1510,3 +1510,30 @@ html[data-cpr-theme="default"] .vas-dialog {
 .vas-dialog .vas-template-entry-controls a.template-delete:hover {
   color: #b90202 !important;
 }
+
+/* Custom theme support (e.g. CPR Theme Designer).
+   Only matches when a custom data-cpr-theme id is active — the two built-in
+   themes ("default", "darkmode") and the no-attribute case are excluded, so
+   normal users are never affected. Remaps the raw --color-* palette onto the
+   CPR system/theme variables, with the current dark values as fallbacks. */
+html[data-cpr-theme]:not([data-cpr-theme="default"]):not([data-cpr-theme="darkmode"]) .vas-vehicle {
+  --color-bg-dark:    var(--cpr-background-window, var(--cpr-dark-background, #232b2b));
+  --color-bg-black:   var(--cpr-background-header, var(--cpr-dark-header, #232b2b));
+  --color-bg-panel:   var(--cpr-background-border, var(--cpr-dark-main, #52606d));
+  --color-bg-fill:    var(--cpr-background-row-even, var(--cpr-dark-background, #3b3b3b));
+  --color-border:     var(--cpr-background-border, var(--cpr-dark-main, #999999));
+  --color-text:       var(--cpr-text-normal, var(--cpr-dark-text-main, #eaeaea));
+  --color-text-dim:   var(--cpr-text-hint, var(--cpr-dark-bluish-grey, #9e9f9f));
+  --color-accent:     var(--cpr-dark-red, var(--cpr-color-red, #b90202));
+  --color-tab-active: var(--cpr-background-tab-active, var(--cpr-dark-main, #5a6a78));
+  --color-card-fill:  var(--cpr-background-row-even, var(--cpr-dark-main, #3b3b3b));
+}
+
+html[data-cpr-theme]:not([data-cpr-theme="default"]):not([data-cpr-theme="darkmode"]) .vas-dialog {
+  --color-bg-fill:  var(--cpr-background-row-even, var(--cpr-dark-background, #3b3b3b));
+  --color-bg-black: var(--cpr-background-header, var(--cpr-dark-header, #232b2b));
+  --color-border:   var(--cpr-background-border, var(--cpr-dark-main, #999999));
+  --color-text:     var(--cpr-text-normal, var(--cpr-dark-text-main, #eaeaea));
+  --color-text-dim: var(--cpr-text-hint, var(--cpr-dark-bluish-grey, #9e9f9f));
+  --color-bg-panel: var(--cpr-background-border, var(--cpr-dark-main, #52606d));
+}
